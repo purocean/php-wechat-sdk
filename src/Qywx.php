@@ -176,6 +176,25 @@ class Qywx
     }
 
     /**
+     * 获取部门列表.
+     *
+     * @param string $departmentId 部门ID
+     *
+     * @return array 获取到的数据
+     */
+    public function getDepartments($departmentId)
+    {
+        $apiUrl = 'https://qyapi.weixin.qq.com/cgi-bin/department/list';
+
+        $result = $this->_curl($apiUrl, [
+            'access_token' => $this->getAccessToken(),
+            'id' => $departmentId,
+        ]);
+
+        return json_decode($result, true);
+    }
+
+    /**
      * 获取部门成员列表.
      *
      * @param string $departmentId 部门ID
@@ -185,7 +204,7 @@ class Qywx
      *
      * @return array 获取到的数据
      */
-    public function getDepartmentMember($departmentId, $fetchChild = false, $status = 0)
+    public function getDepartmentMembers($departmentId, $fetchChild = false, $status = 0)
     {
         $fetchChild = (int) $fetchChild;
         $apiUrl = 'https://qyapi.weixin.qq.com/cgi-bin/user/simplelist';
@@ -201,19 +220,37 @@ class Qywx
     }
 
     /**
-     * 获取部门列表.
-     *
-     * @param string $departmentId 部门ID
+     * 获取标签列表.
      *
      * @return array 获取到的数据
      */
-    public function getDepartments($departmentId)
+    public function getTags()
     {
-        $apiUrl = 'https://qyapi.weixin.qq.com/cgi-bin/department/list';
+        $apiUrl = 'https://qyapi.weixin.qq.com/cgi-bin/tag/list';
 
         $result = $this->_curl($apiUrl, [
             'access_token' => $this->getAccessToken(),
-            'id' => $departmentId,
+        ]);
+
+        return json_decode($result, true);
+    }
+
+    /**
+     * 获取标签成员列表，注意权限问题.
+     *
+     * @param string $tagId 标签ID
+     *
+     * @link http://qydev.weixin.qq.com/wiki/index.php?title=%E7%AE%A1%E7%90%86%E6%A0%87%E7%AD%BE
+     *
+     * @return array 获取到的数据
+     */
+    public function getTagMembers($tagId)
+    {
+        $apiUrl = 'https://qyapi.weixin.qq.com/cgi-bin/tag/get';
+
+        $result = $this->_curl($apiUrl, [
+            'access_token' => $this->getAccessToken(),
+            'tagid' => $tagId,
         ]);
 
         return json_decode($result, true);
