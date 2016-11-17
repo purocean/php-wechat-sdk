@@ -68,17 +68,19 @@ class Qywx
             }
 
             if ($update) {
-                $resultJson = $this->_curl(
+                if ($result = $this->_curl(
                     'https://qyapi.weixin.qq.com/cgi-bin/gettoken',
                     [
                         'corpid' => $this->getConfig('corpid'),
                         'corpsecret' => $this->getConfig('secret'),
                     ]
-                );
-                $result = json_decode($resultJson, true);
-                $result['time'] = time();
-                $result['expires_in'] -= 1000; // 6200 秒就更新
-                file_put_contents($accessTokenFile, json_encode($result));
+                )) {
+                    $result['time'] = time();
+                    $result['expires_in'] = 6200; // 6200 秒就更新
+                    file_put_contents($accessTokenFile, json_encode($result));
+                } else {
+                    return false;
+                }
             }
 
             if (isset($result['access_token'])) {
@@ -172,7 +174,7 @@ class Qywx
             .$this->getAccessToken();
         $postStr = json_encode($msg, JSON_UNESCAPED_UNICODE);
 
-        return json_decode($this->_curl($apiUrl, $postStr, 'post'), true);
+        return $this->_curl($apiUrl, $postStr, 'post');
     }
 
     /**
@@ -191,7 +193,7 @@ class Qywx
             'id' => $departmentId,
         ]);
 
-        return json_decode($result, true);
+        return ($result and isset($result['department'])) ? $result['department'] : null;
     }
 
     /**
@@ -216,7 +218,7 @@ class Qywx
             'status' => $status,
         ]);
 
-        return json_decode($result, true);
+        return ($result and isset($result['userlist'])) ? $result['userlist'] : null;
     }
 
     /**
@@ -232,17 +234,17 @@ class Qywx
             'access_token' => $this->getAccessToken(),
         ]);
 
-        return json_decode($result, true);
+        return ($result and isset($result['taglist'])) ? $result['taglist'] : null;
     }
 
     /**
      * 获取标签成员列表，注意权限问题.
      *
-     * @param string $tagId 标签ID
+     * @param int $tagId 标签ID
      *
      * @link http://qydev.weixin.qq.com/wiki/index.php?title=%E7%AE%A1%E7%90%86%E6%A0%87%E7%AD%BE
      *
-     * @return array 获取到的数据
+     * @return array 获取到的数据 ['userlist', 'partylist']
      */
     public function getTagMembers($tagId)
     {
@@ -253,7 +255,30 @@ class Qywx
             'tagid' => $tagId,
         ]);
 
-        return json_decode($result, true);
+        if ($result and isset($result['userlist']) and isset($result['partylist'])) {
+            return ['userlist' => $result['userlist'], 'partylist' => $result['partylist']];
+        }
+
+        return null;
+    }
+
+    /**
+     * 获取标签所有成员，包括在部门的，可能会有重叠，注意权限问题
+     *
+     * @param int $tagId 标签ID
+     *
+     * @return array|null 取得的数据
+     */
+    public function getTagAllMembers($tagId)
+    {
+        $tagMembers = $this->getTagMembers($tagId);
+        if (is_null($tagMembers)) {
+            return null;
+        }
+
+        return $tagMembers['userlist'] +array_reduce($tagMembers['partylist'], function ($result, $item) {
+            return $result + (array) $this->getDepartmentMembers($item, true);
+        }, []);
     }
 
     /**
@@ -281,16 +306,12 @@ class Qywx
     {
         $apiUrl = 'https://qyapi.weixin.qq.com/cgi-bin/user/getuserinfo';
 
-        $result = json_decode($this->_curl($apiUrl, [
+        $result = $this->_curl($apiUrl, [
             'access_token' => $this->getAccessToken(),
             'code' => $code,
-        ]), true);
+        ]);
 
-        if (isset($result['UserId'])) {
-            return $result['UserId'];
-        }
-
-        return null;
+        return ($result and isset($result['UserId'])) ? $result['UserId'] : null;
     }
 
     /**
@@ -304,12 +325,15 @@ class Qywx
     {
         $apiUrl = 'https://qyapi.weixin.qq.com/cgi-bin/user/get';
 
-        $result = json_decode($this->_curl($apiUrl, [
+        if ($result = $this->_curl($apiUrl, [
             'access_token' => $this->getAccessToken(),
             'userid' => $userid,
-        ]), true);
-
-        return $result;
+        ])) {
+            unset($result['errcode'], $result['errmsg']);
+            return $result;
+        } else {
+            return null;
+        }
     }
 
     /**
@@ -323,12 +347,12 @@ class Qywx
     {
         $apiUrl = 'https://qyapi.weixin.qq.com/cgi-bin/user/delete';
 
-        $result = json_decode($this->_curl($apiUrl, [
+        $result = $this->_curl($apiUrl, [
             'access_token' => $this->getAccessToken(),
             'userid' => $userid,
-        ]), true);
+        ]);
 
-        return $result;
+        return $result !== false;
     }
 
     /**
@@ -336,11 +360,11 @@ class Qywx
      *
      * @param string       $url    目标 URL
      * @param array|string $data   发送的数据
-     * @param string       $mothod 发送方式
+     * @param string       $method 发送方式
      *
-     * @return string 获得的内容
+     * @return array|boolen 获得的内容
      */
-    private function _curl($url, $data = '', $mothod = 'get')
+    private function _curl($url, $data = '', $method = 'get')
     {
         $parStr = '';
         if (is_array($data)) {
@@ -349,8 +373,8 @@ class Qywx
             $parStr = $data;
         }
 
-        if (strtolower($mothod) == 'get') {
-            $result = file_get_contents(rtrim($url, '?').'?'.$parStr);
+        if (strtolower($method) == 'get') {
+            $json = file_get_contents(rtrim($url, '?').'?'.$parStr);
         } else {
             $ch = curl_init();
             curl_setopt($ch, CURLOPT_URL, $url);
@@ -360,11 +384,18 @@ class Qywx
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
             curl_setopt($ch, CURLOPT_POST, 1);
             curl_setopt($ch, CURLOPT_POSTFIELDS, $parStr);
-            $result = curl_exec($ch);
+            $json = curl_exec($ch);
             curl_close($ch);
         }
 
-        return $result;
+        $result = json_decode($json, true);
+
+        if (isset($result['access_token']) or isset($result['errcode']) and $result['errcode'] === 0) {
+            return $result;
+        } else {
+            $this->_log("Error-{$method}-{$url}", $json, $data);
+            return false;
+        }
     }
 
     private function _parseUserList($userList)
@@ -374,5 +405,17 @@ class Qywx
         }
 
         return $userList;
+    }
+
+    private function _log($title, $content = '', $data = '')
+    {
+        $data = var_export($data, true);
+        $log = date("Y-m-d H:i:s") . " ---- {$title}\n{$data}\n\n{$content}\n\n";
+
+        return file_put_contents(
+            $this->getConfig('dataPath').'/qywx.log',
+            $log,
+            FILE_APPEND
+        );
     }
 }
