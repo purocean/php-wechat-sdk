@@ -201,15 +201,18 @@ class Qywx
      *
      * @param string $departmentId 部门ID
      * @param bool   $fetchChild   是否递归获取子部门的成员
+     * @param bool   $fetchDetail  是否获取成员详情
      * @param int    $status       0获取全部成员，1获取已关注成员列表
      *                             2获取禁用成员列表，4获取未关注成员列表。status可叠加
      *
      * @return array 获取到的数据
      */
-    public function getDepartmentMembers($departmentId, $fetchChild = false, $status = 0)
+    public function getDepartmentMembers($departmentId, $fetchChild = false, $fetchDetail = false, $status = 0)
     {
         $fetchChild = (int) $fetchChild;
-        $apiUrl = 'https://qyapi.weixin.qq.com/cgi-bin/user/simplelist';
+        $apiUrl = $fetchDetail
+                    ? 'https://qyapi.weixin.qq.com/cgi-bin/user/list'
+                    : 'https://qyapi.weixin.qq.com/cgi-bin/user/simplelist';
 
         $result = $this->_curl($apiUrl, [
             'access_token' => $this->getAccessToken(),
@@ -240,13 +243,14 @@ class Qywx
     /**
      * 获取标签成员列表，注意权限问题.
      *
-     * @param int $tagId 标签ID
+     * @param int  $tagId        标签ID
+     * @param bool $fetchDetail  是否获取成员详情
      *
      * @link http://qydev.weixin.qq.com/wiki/index.php?title=%E7%AE%A1%E7%90%86%E6%A0%87%E7%AD%BE
      *
      * @return array 获取到的数据 ['userlist', 'partylist']
      */
-    public function getTagMembers($tagId)
+    public function getTagMembers($tagId, $fetchDetail = false)
     {
         $apiUrl = 'https://qyapi.weixin.qq.com/cgi-bin/tag/get';
 
@@ -256,6 +260,12 @@ class Qywx
         ]);
 
         if ($result and isset($result['userlist']) and isset($result['partylist'])) {
+            if ($fetchDetail) {
+                $result['userlist'] = array_map(function ($item) {
+                    return $this->getUserInfo($item['userid']);
+                }, $result['userlist']);
+            }
+
             return ['userlist' => $result['userlist'], 'partylist' => $result['partylist']];
         }
 
@@ -265,19 +275,20 @@ class Qywx
     /**
      * 获取标签所有成员，包括在部门的，可能会有重叠，注意权限问题
      *
-     * @param int $tagId 标签ID
+     * @param int  $tagId        标签ID
+     * @param bool $fetchDetail  是否获取成员详情
      *
      * @return array|null 取得的数据
      */
-    public function getTagAllMembers($tagId)
+    public function getTagAllMembers($tagId, $fetchDetail = false)
     {
-        $tagMembers = $this->getTagMembers($tagId);
+        $tagMembers = $this->getTagMembers($tagId, $fetchDetail);
         if (is_null($tagMembers)) {
             return null;
         }
 
-        return $tagMembers['userlist'] +array_reduce($tagMembers['partylist'], function ($result, $item) {
-            return $result + (array) $this->getDepartmentMembers($item, true);
+        return $tagMembers['userlist'] + array_reduce($tagMembers['partylist'], function ($result, $item) {
+            return $result + (array) $this->getDepartmentMembers($item, true, $fetchDetail);
         }, []);
     }
 
