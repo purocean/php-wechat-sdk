@@ -1,0 +1,22 @@
+{
+    "name": "purocean/php-wechat-sdk",
+    "type": "library",
+    "description": "一个微信公众号企业号 SDK",
+    "keywords": ["wechat", "sdk", "公众号", "企业号", "微信"],
+    "homepage": "https://github.com/purocean/php-wechat-sdk",
+    "license": "MIT",
+    "support": {
+        "issues": "https://github.com/purocean/php-wechat-sdk/issues",
+        "source": "https://github.com/purocean/php-wechat-sdk"
+    },
+    "require": {
+        "php": ">=5.4.0",
+    },
+    "require-dev": {
+    },
+    "autoload": {
+        "psr-4": {
+            "Wxsdk\\": "src/"
+        }
+    }
+}
