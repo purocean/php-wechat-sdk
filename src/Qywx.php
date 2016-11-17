@@ -287,7 +287,7 @@ class Qywx
             return null;
         }
 
-        return $tagMembers['userlist'] + array_reduce($tagMembers['partylist'], function ($result, $item) {
+        return $tagMembers['userlist'] + array_reduce($tagMembers['partylist'], function ($result, $item) use ($fetchDetail) {
             return $result + (array) $this->getDepartmentMembers($item, true, $fetchDetail);
         }, []);
     }
