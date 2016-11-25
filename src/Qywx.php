@@ -401,12 +401,12 @@ class Qywx
 
         $result = json_decode($json, true);
 
-        if (isset($result['access_token']) or isset($result['errcode']) and $result['errcode'] === 0) {
-            return $result;
-        } else {
+        if (isset($result['errcode']) and $result['errcode'] != 0) {
             $this->_log("Error-{$method}-{$url}", $json, $data);
             return false;
         }
+
+        return $result;
     }
 
     private function _parseUserList($userList)
