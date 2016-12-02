@@ -91,6 +91,45 @@ class Qywx
         return $this->getConfig('access_token');
     }
 
+    private function getJsApiTicket()
+    {
+        $jsapiTicketFile = $this->getConfig('dataPath').'/jsapi_ticket_cache.json'; // 缓存文件名
+        if (!$this->getConfig('jsapi_ticket')) {
+            $update = true;
+
+            if (file_exists($jsapiTicketFile)) {
+                $result = json_decode(file_get_contents($jsapiTicketFile), true);
+                if (isset($result['jsapi_ticket']) && isset($result['time'])
+                        && isset($result['expires_in'])
+                        && (time() - $result['time']) < $result['expires_in']) {
+                    $this->_config['jsapi_ticket'] = $result['jsapi_ticket'];
+                    $update = false;
+                }
+            }
+
+            if ($update) {
+                if ($result = $this->_curl(
+                    'https://qyapi.weixin.qq.com/cgi-bin/get_jsapi_ticket',
+                    [
+                        'access_token' => $this->getAccessToken(),
+                    ]
+                )) {
+                    $result['time'] = time();
+                    $result['expires_in'] = 6200; // 6200 秒就更新
+                    file_put_contents($jsapiTicketFile, json_encode($result));
+                } else {
+                    return false;
+                }
+            }
+
+            if (isset($result['jsapi_ticket'])) {
+                $this->_config['jsapi_ticket'] = $result['jsapi_ticket'];
+            }
+        }
+
+        return $this->getConfig('jsapi_ticket');
+    }
+
     /**
      * 发送文本消息.
      *
@@ -364,6 +403,42 @@ class Qywx
         ]);
 
         return $result !== false;
+    }
+
+    /**
+     * 获取微信 JS API 签名包
+     *
+     * @param string $url 要签名的网址，不提供则为当前地址
+     *
+     * @return array 签名包
+     */
+    public function getJsApiPackage($url = null)
+    {
+        $jsapiTicket = $this->getJsApiTicket();
+
+        if (is_null($url)) {
+            $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' || $_SERVER['SERVER_PORT'] == 443) ? 'https://' : 'http://';
+            $url = $protocol.$_SERVER['HTTP_HOST'].$_SERVER['REQUEST_URI'];
+        }
+
+        $timestamp = time();
+        $nonceStr = base64_encode(openssl_random_pseudo_bytes(24));
+
+        // 这里参数的顺序要按照 key 值 ASCII 码升序排序
+        $string = "jsapi_ticket={$jsapiTicket}&noncestr={$nonceStr}&timestamp={$timestamp}&url={$url}";
+
+        $signature = sha1($string);
+
+        $signPackage = [
+          'appId' => $this->appId,
+          'nonceStr' => $nonceStr,
+          'timestamp' => $timestamp,
+          'url' => $url,
+          'signature' => $signature,
+          'rawString' => $string,
+        ];
+
+        return $signPackage;
     }
 
     /**
