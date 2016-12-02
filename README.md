@@ -14,6 +14,7 @@
 - [x] 由 OAth 认证的 code 获取 userid
 - [x] 获取某个用户的信息
 - [x] 删除某个用户
+- [x] Js Api
 
 ## 公众号
     Todo……
