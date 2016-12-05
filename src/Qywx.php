@@ -134,8 +134,13 @@ class Qywx
      * 发送文本消息.
      *
      * @param string $text       要发送的内容
-     * @param array  $toUserList 发送给的对象例 array('touser': "userid1|userid2",
-     *                           'topart':'partid1') 参考 http://qydev.weixin.qq.com/wiki/index.php?title=%E6%B6%88%E6%81%AF%E7%B1%BB%E5%9E%8B%E5%8F%8A%E6%95%B0%E6%8D%AE%E6%A0%BC%E5%BC%8F#text.E6.B6.88.E6.81.AF
+     * @param array  $toUserList 发送给的对象例
+     *                           [
+     *                               'touser': ['userid1', 'userid2'], // 或者字符串形式 'userid1|userid2'，下同，@all，则向关注该企业应用的全部成员发送
+     *                               'topart': ['partid1', 'partid1'],
+     *                               'totag':  ['tag1', 'tag2'],
+     *                           ]
+     *                           参考 http://qydev.weixin.qq.com/wiki/index.php?title=%E6%B6%88%E6%81%AF%E7%B1%BB%E5%9E%8B%E5%8F%8A%E6%95%B0%E6%8D%AE%E6%A0%BC%E5%BC%8F#text.E6.B6.88.E6.81.AF
      * @param string $agentId    企业应用的ID
      *
      * @return array json 参考 http://qydev.weixin.qq.com/wiki/index.php?title=%E5%8F%91%E9%80%81%E6%8E%A5%E5%8F%A3%E8%AF%B4%E6%98%8E
@@ -159,8 +164,13 @@ class Qywx
      * 发送 News 消息.
      *
      * @param array  $articles   要发送的文章
-     * @param array  $toUserList 发送给的对象例 ['touser': "userid1|userid2",
-     *                           'topart':'partid1'] 参考 http://qydev.weixin.qq.com/wiki/index.php?title=%E6%B6%88%E6%81%AF%E7%B1%BB%E5%9E%8B%E5%8F%8A%E6%95%B0%E6%8D%AE%E6%A0%BC%E5%BC%8F#text.E6.B6.88.E6.81.AF
+     * @param array  $toUserList 发送给的对象例
+     *                           [
+     *                               'touser': ['userid1', 'userid2'], // 或者字符串形式 'userid1|userid2'，下同，@all，则向关注该企业应用的全部成员发送
+     *                               'topart': ['partid1', 'partid1'],
+     *                               'totag':  ['tag1', 'tag2'],
+     *                           ]
+     *                           参考 http://qydev.weixin.qq.com/wiki/index.php?title=%E6%B6%88%E6%81%AF%E7%B1%BB%E5%9E%8B%E5%8F%8A%E6%95%B0%E6%8D%AE%E6%A0%BC%E5%BC%8F#text.E6.B6.88.E6.81.AF
      * @param string $agentId    企业应用的ID
      *
      * @return string 腾讯服务器返回的 json 参考 http://qydev.weixin.qq.com/wiki/index.php?title=%E5%8F%91%E9%80%81%E6%8E%A5%E5%8F%A3%E8%AF%B4%E6%98%8E
@@ -486,8 +496,16 @@ class Qywx
 
     private function _parseUserList($userList)
     {
-        if (is_array($userList['touser'])) {
+        if (isset($userList['touser']) and is_array($userList['touser'])) {
             $userList['touser'] = implode('|', $userList['touser']);
+        }
+
+        if (isset($userList['toparty']) and is_array($userList['toparty'])) {
+            $userList['toparty'] = implode('|', $userList['toparty']);
+        }
+
+        if (isset($userList['totag']) and is_array($userList['totag'])) {
+            $userList['totag'] = implode('|', $userList['totag']);
         }
 
         return $userList;
