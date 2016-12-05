@@ -91,6 +91,11 @@ class Qywx
         return $this->getConfig('access_token');
     }
 
+    /**
+     * 获取微信 JSAPI Ticket.
+     *
+     * @return string
+     */
     private function getJsApiTicket()
     {
         $jsapiTicketFile = $this->getConfig('dataPath').'/jsapi_ticket_cache.json'; // 缓存文件名
