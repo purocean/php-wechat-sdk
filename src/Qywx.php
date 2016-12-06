@@ -141,9 +141,9 @@ class Qywx
      * @param string $text       要发送的内容
      * @param array  $toUserList 发送给的对象例
      *                           [
-     *                               'touser': ['userid1', 'userid2'], // 或者字符串形式 'userid1|userid2'，下同，@all，则向关注该企业应用的全部成员发送
-     *                               'topart': ['partid1', 'partid1'],
-     *                               'totag':  ['tag1', 'tag2'],
+     *                               'touser' => ['userid1', 'userid2'], // 可选，或者字符串形式 'userid1|userid2'，下同，@all，则向关注该企业应用的全部成员发送
+     *                               'topart' => ['partid1', 'partid1'],
+     *                               'totag' =>  ['tag1', 'tag2'],
      *                           ]
      *                           参考 http://qydev.weixin.qq.com/wiki/index.php?title=%E6%B6%88%E6%81%AF%E7%B1%BB%E5%9E%8B%E5%8F%8A%E6%95%B0%E6%8D%AE%E6%A0%BC%E5%BC%8F#text.E6.B6.88.E6.81.AF
      * @param string $agentId    企业应用的ID
@@ -171,9 +171,9 @@ class Qywx
      * @param array  $articles   要发送的文章
      * @param array  $toUserList 发送给的对象例
      *                           [
-     *                               'touser': ['userid1', 'userid2'], // 或者字符串形式 'userid1|userid2'，下同，@all，则向关注该企业应用的全部成员发送
-     *                               'topart': ['partid1', 'partid1'],
-     *                               'totag':  ['tag1', 'tag2'],
+     *                               'touser' => ['userid1', 'userid2'], // 可选，或者字符串形式 'userid1|userid2'，下同，@all，则向关注该企业应用的全部成员发送
+     *                               'topart' => ['partid1', 'partid1'],
+     *                               'totag' =>  ['tag1', 'tag2'],
      *                           ]
      *                           参考 http://qydev.weixin.qq.com/wiki/index.php?title=%E6%B6%88%E6%81%AF%E7%B1%BB%E5%9E%8B%E5%8F%8A%E6%95%B0%E6%8D%AE%E6%A0%BC%E5%BC%8F#text.E6.B6.88.E6.81.AF
      * @param string $agentId    企业应用的ID
