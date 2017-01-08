@@ -445,7 +445,7 @@ class Qywx
         $signature = sha1($string);
 
         $signPackage = [
-          'appId' => $this->appId,
+          'corpid' => $this->getConfig('corpid'),
           'nonceStr' => $nonceStr,
           'timestamp' => $timestamp,
           'url' => $url,
