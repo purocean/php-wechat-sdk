@@ -54,7 +54,7 @@ class Qywx
     public function getAccessToken()
     {
         $accessTokenFile = $this->getConfig('dataPath').'/access_token_cache.json'; // 缓存文件名
-        if (!$this->getConfig('access_token')) {
+        if (!$this->getConfig('access_token') or $this->getConfig('access_token_expiresed_at') >= time()) {
             $update = true;
 
             if (file_exists($accessTokenFile)) {
@@ -63,6 +63,7 @@ class Qywx
                         && isset($result['expires_in'])
                         && (time() - $result['time']) < $result['expires_in']) {
                     $this->_config['access_token'] = $result['access_token'];
+                    $this->_config['access_token_expiresed_at'] = $result['expires_in'] + $result['time'];
                     $update = false;
                 }
             }
@@ -85,6 +86,7 @@ class Qywx
 
             if (isset($result['access_token'])) {
                 $this->_config['access_token'] = $result['access_token'];
+                $this->_config['access_token_expiresed_at'] = $result['expires_in'] + $result['time'];
             }
         }
 
