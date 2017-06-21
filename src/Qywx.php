@@ -53,44 +53,15 @@ class Qywx
      */
     public function getAccessToken()
     {
-        $accessTokenFile = $this->getConfig('dataPath').'/access_token_cache.json'; // 缓存文件名
-        if (!$this->getConfig('access_token') or $this->getConfig('access_token_expiresed_at') < time()) {
-            $update = true;
-
-            if (file_exists($accessTokenFile)) {
-                $result = json_decode(file_get_contents($accessTokenFile), true);
-                if (isset($result['access_token']) && isset($result['time'])
-                        && isset($result['expires_in'])
-                        && (time() - $result['time']) < $result['expires_in']) {
-                    $this->_config['access_token'] = $result['access_token'];
-                    $this->_config['access_token_expiresed_at'] = $result['expires_in'] + $result['time'];
-                    $update = false;
-                }
-            }
-
-            if ($update) {
-                if ($result = $this->_curl(
-                    'https://qyapi.weixin.qq.com/cgi-bin/gettoken',
-                    [
-                        'corpid' => $this->getConfig('corpid'),
-                        'corpsecret' => $this->getConfig('secret'),
-                    ]
-                )) {
-                    $result['time'] = time();
-                    $result['expires_in'] = 6200; // 6200 秒就更新
-                    file_put_contents($accessTokenFile, json_encode($result));
-                } else {
-                    return false;
-                }
-            }
-
-            if (isset($result['access_token'])) {
-                $this->_config['access_token'] = $result['access_token'];
-                $this->_config['access_token_expiresed_at'] = $result['expires_in'] + $result['time'];
-            }
-        }
-
-        return $this->getConfig('access_token');
+        return $this->getCachedValue('access_token', function () {
+            return $this->_curl(
+                'https://qyapi.weixin.qq.com/cgi-bin/gettoken',
+                [
+                    'corpid' => $this->getConfig('corpid'),
+                    'corpsecret' => $this->getConfig('secret'),
+                ]
+            );
+        });
     }
 
     /**
@@ -100,41 +71,56 @@ class Qywx
      */
     private function getJsApiTicket()
     {
-        $jsapiTicketFile = $this->getConfig('dataPath').'/jsapi_ticket_cache.json'; // 缓存文件名
-        if (!$this->getConfig('jsapi_ticket')) {
-            $update = true;
+        return $this->getCachedValue('ticket', function () {
+            return $this->_curl(
+                'https://qyapi.weixin.qq.com/cgi-bin/get_jsapi_ticket',
+                [
+                    'access_token' => $this->getAccessToken(),
+                ]
+            );
+        });
+    }
 
-            if (file_exists($jsapiTicketFile)) {
-                $result = json_decode(file_get_contents($jsapiTicketFile), true);
-                if (isset($result['jsapi_ticket']) && isset($result['time'])
-                        && isset($result['expires_in'])
-                        && (time() - $result['time']) < $result['expires_in']) {
-                    $this->_config['jsapi_ticket'] = $result['jsapi_ticket'];
-                    $update = false;
-                }
-            }
+    /**
+     * 获取缓存的值，access_token, jsapi_ticket
+     *
+     * @param string $key 键
+     * @param Closure $call 如果缓存获取不到备用
+     *
+     * @return mixed 值
+     */
+    public function getCachedValue($key, $call = null)
+    {
+        // 从自己配置中取出未过期数据
+        if ($this->getConfig($key) and $this->getConfig("{$key}_expiresed_at") > time()) {
+            return $this->getConfig($key);
+        }
 
-            if ($update) {
-                if ($result = $this->_curl(
-                    'https://qyapi.weixin.qq.com/cgi-bin/get_jsapi_ticket',
-                    [
-                        'access_token' => $this->getAccessToken(),
-                    ]
-                )) {
-                    $result['time'] = time();
-                    $result['expires_in'] = 6200; // 6200 秒就更新
-                    file_put_contents($jsapiTicketFile, json_encode($result));
-                } else {
-                    return false;
-                }
-            }
+        // 自己的配置中没有就从缓存文件中取
+        $cacheFile = $this->getConfig('dataPath')."/${key}_cache.json"; // 缓存文件名
+        $result = $this->_getCache($cacheFile);
 
-            if (isset($result['jsapi_ticket'])) {
-                $this->_config['jsapi_ticket'] = $result['jsapi_ticket'];
+        // 缓存文件也没有或者过期了，就从闭包获取
+        if (!$result or !isset($result[$key]) and !is_null($call)) {
+            $result = $call();
+
+            // 获取成功了写入缓存文件
+            if ($result and isset($result[$key])) {
+                $result['time'] = time();
+                $result['expires_in'] = 6200; // 6200 秒就更新
+                file_put_contents($cacheFile, json_encode($result));
             }
         }
 
-        return $this->getConfig('jsapi_ticket');
+        // 更新自己的配置并返回
+        if ($result and isset($result[$key])) {
+            $this->_config[$key] = $result[$key];
+            $this->_config["{$key}_expiresed_at"] = $result['expires_in'] + $result['time'];
+
+            return $this->getConfig($key);
+        }
+
+        return null;
     }
 
     /**
@@ -456,6 +442,25 @@ class Qywx
         ];
 
         return $signPackage;
+    }
+
+    private function _getCache($file)
+    {
+        if (!file_exists($file)) {
+            return null;
+        }
+
+        if (!$result = json_decode(file_get_contents($file), true)) {
+            return null;
+        }
+
+        if (isset($result['time'])
+            and isset($result['expires_in'])
+            and (time() - $result['time']) < $result['expires_in']) {
+            return $result;
+        }
+
+        return null;
     }
 
     /**
