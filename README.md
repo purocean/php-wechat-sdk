@@ -10,11 +10,16 @@
 - [x] 获取标签列表
 - [x] 获取标签成员列表
 - [x] 获取所有标签成员列表
-- [x] 获取微信 OAth 认证跳转链接
-- [x] 由 OAth 认证的 code 获取 userid
+- [x] 获取微信 OAuth 网页授权跳转链接
+- [x] 由 OAuth 认证的 code 获取 userid
 - [x] 获取某个用户的信息
 - [x] 删除某个用户
 - [x] Js Api
 
 ## 公众号
-    Todo……
+- [x] 获取Access Token
+- [x] 获取某个用户的信息
+- [x] 发送模板消息
+- [x] 获取微信 OAuth 网页授权跳转链接
+- [x] 网页授权
+- [x] Js Api

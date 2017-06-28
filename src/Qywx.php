@@ -69,7 +69,7 @@ class Qywx
      *
      * @return string
      */
-    private function getJsApiTicket()
+    public function getJsApiTicket()
     {
         return $this->getCachedValue('ticket', function () {
             return $this->_curl(
