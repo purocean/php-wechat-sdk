@@ -15,6 +15,7 @@ class Mpwx
      * @var array
      */
     private $_config = [
+        'file_prefix' => '', // 缓存文件前缀
         'appid' => '',
         'secret' => '',
         'dataPath' => '', // 缓存数据存放目录
@@ -129,7 +130,8 @@ class Mpwx
         }
 
         // 自己的配置中没有就从缓存文件中取
-        $cacheFile = $this->getConfig('dataPath')."/${key}_cache.json"; // 缓存文件名
+        $prefix = $this->getConfig('file_prefix');
+        $cacheFile = $this->getConfig('dataPath')."/{$prefix}{$key}_cache.json"; // 缓存文件名
         $result = $this->_getCache($cacheFile);
 
         // 缓存文件也没有或者过期了，就从闭包获取
@@ -333,7 +335,7 @@ class Mpwx
         $log = date("Y-m-d H:i:s") . " ---- {$title}\n{$data}\n\n{$content}\n\n";
 
         return file_put_contents(
-            $this->getConfig('dataPath').'/mpwx.log',
+            $this->getConfig('dataPath').'/' . $this->getConfig('file_prefix') . 'mpwx.log',
             $log,
             FILE_APPEND
         );

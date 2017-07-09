@@ -15,6 +15,7 @@ class Qywx
      * @var array
      */
     private $_config = [
+        'file_prefix' => '', // 缓存文件前缀
         'safe' => '0', // 发送消息是否保密
         'corpid' => '',
         'secret' => '',
@@ -97,7 +98,8 @@ class Qywx
         }
 
         // 自己的配置中没有就从缓存文件中取
-        $cacheFile = $this->getConfig('dataPath')."/${key}_cache.json"; // 缓存文件名
+        $prefix = $this->getConfig('file_prefix');
+        $cacheFile = $this->getConfig('dataPath')."/{$prefix}{$key}_cache.json"; // 缓存文件名
         $result = $this->_getCache($cacheFile);
 
         // 缓存文件也没有或者过期了，就从闭包获取
@@ -529,7 +531,7 @@ class Qywx
         $log = date("Y-m-d H:i:s") . " ---- {$title}\n{$data}\n\n{$content}\n\n";
 
         return file_put_contents(
-            $this->getConfig('dataPath').'/qywx.log',
+            $this->getConfig('dataPath').'/' . $this->getConfig('file_prefix') . 'qywx.log',
             $log,
             FILE_APPEND
         );
