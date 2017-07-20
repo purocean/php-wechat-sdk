@@ -536,4 +536,44 @@ class Qywx
             FILE_APPEND
         );
     }
+
+    /**
+     * 媒体文件下载
+     *
+     * @param $mediaId
+     * @return array|bool|boolen
+     */
+    public function downloadMedia($mediaId)
+    {
+        $file = file_get_contents("https://qyapi.weixin.qq.com/cgi-bin/media/get?access_token={$this->getAccessToken()}&media_id={$mediaId}");
+        $heads = $this->parseHeaders($http_response_header);
+        return [
+            'file' => $file,
+            'head' => $heads
+        ];
+    }
+
+    /**
+     * $http_response_header 参数解析
+     *
+     * @param $headers
+     * @return array
+     */
+    private function parseHeaders($headers)
+    {
+        $head = [];
+        foreach ($headers as $k => $v) {
+            $t = explode(':', $v, 2);
+            if (isset($t[1]))
+                $head[trim($t[0])] = trim($t[1]);
+            else {
+                $head[] = $v;
+                if (preg_match("#HTTP/[0-9\.]+\s+([0-9]+)#", $v, $out))
+                    $head['reponse_code'] = intval($out[1]);
+            }
+        }
+        return $head;
+    }
+
+
 }
