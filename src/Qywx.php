@@ -255,8 +255,8 @@ class Qywx
     {
         $fetchChild = (int) $fetchChild;
         $apiUrl = $fetchDetail
-                    ? 'https://qyapi.weixin.qq.com/cgi-bin/user/list'
-                    : 'https://qyapi.weixin.qq.com/cgi-bin/user/simplelist';
+            ? 'https://qyapi.weixin.qq.com/cgi-bin/user/list'
+            : 'https://qyapi.weixin.qq.com/cgi-bin/user/simplelist';
 
         $result = $this->_curl($apiUrl, [
             'access_token' => $this->getAccessToken(),
@@ -332,8 +332,8 @@ class Qywx
         }
 
         return $tagMembers['userlist'] + array_reduce($tagMembers['partylist'], function ($result, $item) use ($fetchDetail) {
-            return $result + (array) $this->getDepartmentMembers($item, true, $fetchDetail);
-        }, []);
+                return $result + (array)$this->getDepartmentMembers($item, true, $fetchDetail);
+            }, []);
     }
 
     /**
@@ -435,12 +435,12 @@ class Qywx
         $signature = sha1($string);
 
         $signPackage = [
-          'corpid' => $this->getConfig('corpid'),
-          'nonceStr' => $nonceStr,
-          'timestamp' => $timestamp,
-          'url' => $url,
-          'signature' => $signature,
-          'rawString' => $string,
+            'corpid' => $this->getConfig('corpid'),
+            'nonceStr' => $nonceStr,
+            'timestamp' => $timestamp,
+            'url' => $url,
+            'signature' => $signature,
+            'rawString' => $string,
         ];
 
         return $signPackage;
@@ -455,10 +455,7 @@ class Qywx
     public function downloadMedia($mediaId)
     {
         $file = $this->_curl("https://qyapi.weixin.qq.com/cgi-bin/media/get?access_token={$this->getAccessToken()}&media_id={$mediaId}");
-        return [
-            'file' => $file['file'],
-            'head' => $file['head']
-        ];
+        return $file;
     }
 
     private function _getCache($file)
@@ -498,40 +495,46 @@ class Qywx
         }
 
         $ch = curl_init();
-        curl_setopt($ch, CURLOPT_URL, $url);
-        curl_setopt($ch, CURLOPT_HEADER, 1);
-        curl_setopt($ch, CURLOPT_BINARYTRANSFER, 1);
         curl_setopt($ch, CURLOPT_TIMEOUT, 30);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+        curl_setopt($ch, CURLOPT_HEADER, 1);
+        curl_setopt($ch, CURLOPT_BINARYTRANSFER, 1);
 
         //除get请求外默认为post
-        if (strtolower($method) != 'get') {
+        if (strtolower($method) == 'get') {
+            curl_setopt($ch, CURLOPT_URL, rtrim($url, '?') . '?' . $parStr);
+        } else {
+            curl_setopt($ch, CURLOPT_URL, $url);
             curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
             curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
             curl_setopt($ch, CURLOPT_POST, 1);
             curl_setopt($ch, CURLOPT_POSTFIELDS, $parStr);
         }
 
-        $result = curl_exec($ch);
+        $head_and_body = curl_exec($ch);
         curl_close($ch);
 
         //0是头部内容1是body内容
-        list($head, $body) = explode("\r\n\r\n", $result, 2);
+        list($head, $body) = explode("\r\n\r\n", $head_and_body, 2);
         $heads = $this->_parseHeaders($head);
 
-        if ($heads['Content-Type'] == 'application/json') {
-            $result = json_decode($body, true);
-            if (isset($result['errcode']) and $result['errcode'] != 0) {
-                $this->_log("Error-{$method}-{$url}", $result, $data);
-                return false;
-            }
-            return $result;
-        } else {
+        $json = $body;
+        $result = json_decode($json, true);
+
+        if (is_null($result)) {
             return [
                 'file' => $body,
                 'head' => $heads
             ];
+        } else {
+            if (isset($result['errcode']) and $result['errcode'] != 0) {
+                $this->_log("Error-{$method}-{$url}", $json, $data);
+                return false;
+            }
+
+            return $result;
         }
+
     }
 
 
