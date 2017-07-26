@@ -1,0 +1,11 @@
+<?php
+
+return [
+    'file_prefix' => 'test', // 缓存文件前缀
+    'safe'        => '0', // 发送消息是否保密
+    'corpid'      => '',
+    'secret'      => '',
+    'dataPath'    => 'data', // 缓存数据存放目录
+    'appid'       => 0,
+    'testMediaId' => '',
+];

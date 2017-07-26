@@ -454,8 +454,16 @@ class Qywx
      */
     public function downloadMedia($mediaId)
     {
-        $file = $this->_curl("https://qyapi.weixin.qq.com/cgi-bin/media/get?access_token={$this->getAccessToken()}&media_id={$mediaId}");
-        return $file;
+        $result = $this->_curl("https://qyapi.weixin.qq.com/cgi-bin/media/get?access_token={$this->getAccessToken()}&media_id={$mediaId}");
+
+        $match = [];
+
+        preg_match_all('/\nContent-disposition: ?attachment; ?filename="([^"]*?)"/ism', $result['head'], $match);
+
+        return [
+            'filename' => $match[1][0],
+            'content' => $result['body'],
+        ];
     }
 
     private function _getCache($file)
@@ -511,33 +519,28 @@ class Qywx
             curl_setopt($ch, CURLOPT_POSTFIELDS, $parStr);
         }
 
-        $head_and_body = curl_exec($ch);
+        $content = curl_exec($ch);
         curl_close($ch);
 
         //0是头部内容1是body内容
-        list($head, $body) = explode("\r\n\r\n", $head_and_body, 2);
-        $heads = $this->_parseHeaders($head);
+        list($head, $body) = explode("\r\n\r\n", $content, 2);
 
-        $json = $body;
-        $result = json_decode($json, true);
-
-        if (is_null($result)) {
+        if (! preg_match('/\ncontent-type: ?application\/json/ism', $head)) {
             return [
-                'file' => $body,
-                'head' => $heads
+                'body' => $body,
+                'head' => $head
             ];
         } else {
+            $result = json_decode($body, true);
+
             if (isset($result['errcode']) and $result['errcode'] != 0) {
-                $this->_log("Error-{$method}-{$url}", $json, $data);
+                $this->_log("Error-{$method}-{$url}", $body, $data);
                 return false;
             }
 
             return $result;
         }
-
     }
-
-
 
     private function _parseUserList($userList)
     {
@@ -566,22 +569,5 @@ class Qywx
             $log,
             FILE_APPEND
         );
-    }
-
-
-    private function _parseHeaders($headers)
-    {
-        $head = [];
-        foreach (explode("\r\n", $headers) as $k => $v) {
-            $t = explode(':', $v, 2);
-            if (isset($t[1]))
-                $head[trim($t[0])] = trim($t[1]);
-            else {
-                $head[] = $v;
-                if (preg_match("#HTTP/[0-9\.]+\s+([0-9]+)#", $v, $out))
-                    $head['reponse_code'] = intval($out[1]);
-            }
-        }
-        return $head;
     }
 }
