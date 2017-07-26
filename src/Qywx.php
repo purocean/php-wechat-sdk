@@ -446,6 +446,21 @@ class Qywx
         return $signPackage;
     }
 
+    /**
+     * 媒体文件下载
+     *
+     * @param $mediaId
+     * @return array
+     */
+    public function downloadMedia($mediaId)
+    {
+        $file = $this->_curl("https://qyapi.weixin.qq.com/cgi-bin/media/get?access_token={$this->getAccessToken()}&media_id={$mediaId}");
+        return [
+            'file' => $file['file'],
+            'head' => $file['head']
+        ];
+    }
+
     private function _getCache($file)
     {
         if (!file_exists($file)) {
@@ -472,41 +487,54 @@ class Qywx
      * @param array|string $data   发送的数据
      * @param string       $method 发送方式
      *
-     * @return array|boolen 获得的内容
+     * @return array|bool|mixed 获得的内容
      */
     private function _curl($url, $data = '', $method = 'get')
     {
-        $parStr = '';
         if (is_array($data)) {
             $parStr = http_build_query($data);
         } else {
             $parStr = $data;
         }
 
-        if (strtolower($method) == 'get') {
-            $json = file_get_contents(rtrim($url, '?').'?'.$parStr);
-        } else {
-            $ch = curl_init();
-            curl_setopt($ch, CURLOPT_URL, $url);
-            curl_setopt($ch, CURLOPT_TIMEOUT, 30);
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, $url);
+        curl_setopt($ch, CURLOPT_HEADER, 1);
+        curl_setopt($ch, CURLOPT_BINARYTRANSFER, 1);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 30);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+
+        //除get请求外默认为post
+        if (strtolower($method) != 'get') {
             curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
             curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
-            curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
             curl_setopt($ch, CURLOPT_POST, 1);
             curl_setopt($ch, CURLOPT_POSTFIELDS, $parStr);
-            $json = curl_exec($ch);
-            curl_close($ch);
         }
 
-        $result = json_decode($json, true);
+        $result = curl_exec($ch);
+        curl_close($ch);
 
-        if (isset($result['errcode']) and $result['errcode'] != 0) {
-            $this->_log("Error-{$method}-{$url}", $json, $data);
-            return false;
+        //0是头部内容1是body内容
+        list($head, $body) = explode("\r\n\r\n", $result, 2);
+        $heads = $this->_parseHeaders($head);
+
+        if ($heads['Content-Type'] == 'application/json') {
+            $result = json_decode($body, true);
+            if (isset($result['errcode']) and $result['errcode'] != 0) {
+                $this->_log("Error-{$method}-{$url}", $result, $data);
+                return false;
+            }
+            return $result;
+        } else {
+            return [
+                'file' => $body,
+                'head' => $heads
+            ];
         }
-
-        return $result;
     }
+
+
 
     private function _parseUserList($userList)
     {
@@ -537,32 +565,11 @@ class Qywx
         );
     }
 
-    /**
-     * 媒体文件下载
-     *
-     * @param $mediaId
-     * @return array|bool|boolen
-     */
-    public function downloadMedia($mediaId)
-    {
-        $file = file_get_contents("https://qyapi.weixin.qq.com/cgi-bin/media/get?access_token={$this->getAccessToken()}&media_id={$mediaId}");
-        $heads = $this->parseHeaders($http_response_header);
-        return [
-            'file' => $file,
-            'head' => $heads
-        ];
-    }
 
-    /**
-     * $http_response_header 参数解析
-     *
-     * @param $headers
-     * @return array
-     */
-    private function parseHeaders($headers)
+    private function _parseHeaders($headers)
     {
         $head = [];
-        foreach ($headers as $k => $v) {
+        foreach (explode("\r\n", $headers) as $k => $v) {
             $t = explode(':', $v, 2);
             if (isset($t[1]))
                 $head[trim($t[0])] = trim($t[1]);
@@ -574,6 +581,4 @@ class Qywx
         }
         return $head;
     }
-
-
 }
