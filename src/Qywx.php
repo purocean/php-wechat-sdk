@@ -255,8 +255,8 @@ class Qywx
     {
         $fetchChild = (int) $fetchChild;
         $apiUrl = $fetchDetail
-                    ? 'https://qyapi.weixin.qq.com/cgi-bin/user/list'
-                    : 'https://qyapi.weixin.qq.com/cgi-bin/user/simplelist';
+            ? 'https://qyapi.weixin.qq.com/cgi-bin/user/list'
+            : 'https://qyapi.weixin.qq.com/cgi-bin/user/simplelist';
 
         $result = $this->_curl($apiUrl, [
             'access_token' => $this->getAccessToken(),
@@ -332,8 +332,8 @@ class Qywx
         }
 
         return $tagMembers['userlist'] + array_reduce($tagMembers['partylist'], function ($result, $item) use ($fetchDetail) {
-            return $result + (array) $this->getDepartmentMembers($item, true, $fetchDetail);
-        }, []);
+                return $result + (array)$this->getDepartmentMembers($item, true, $fetchDetail);
+            }, []);
     }
 
     /**
@@ -435,15 +435,27 @@ class Qywx
         $signature = sha1($string);
 
         $signPackage = [
-          'corpid' => $this->getConfig('corpid'),
-          'nonceStr' => $nonceStr,
-          'timestamp' => $timestamp,
-          'url' => $url,
-          'signature' => $signature,
-          'rawString' => $string,
+            'corpid' => $this->getConfig('corpid'),
+            'nonceStr' => $nonceStr,
+            'timestamp' => $timestamp,
+            'url' => $url,
+            'signature' => $signature,
+            'rawString' => $string,
         ];
 
         return $signPackage;
+    }
+
+    /**
+     * 媒体文件下载
+     *
+     * @param $mediaId
+     * @return array
+     */
+    public function downloadMedia($mediaId)
+    {
+        $file = $this->_curl("https://qyapi.weixin.qq.com/cgi-bin/media/get?access_token={$this->getAccessToken()}&media_id={$mediaId}");
+        return $file;
     }
 
     private function _getCache($file)
@@ -472,41 +484,60 @@ class Qywx
      * @param array|string $data   发送的数据
      * @param string       $method 发送方式
      *
-     * @return array|boolen 获得的内容
+     * @return array|bool|mixed 获得的内容
      */
     private function _curl($url, $data = '', $method = 'get')
     {
-        $parStr = '';
         if (is_array($data)) {
             $parStr = http_build_query($data);
         } else {
             $parStr = $data;
         }
 
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_TIMEOUT, 30);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+        curl_setopt($ch, CURLOPT_HEADER, 1);
+        curl_setopt($ch, CURLOPT_BINARYTRANSFER, 1);
+
+        //除get请求外默认为post
         if (strtolower($method) == 'get') {
-            $json = file_get_contents(rtrim($url, '?').'?'.$parStr);
+            curl_setopt($ch, CURLOPT_URL, rtrim($url, '?') . '?' . $parStr);
         } else {
-            $ch = curl_init();
             curl_setopt($ch, CURLOPT_URL, $url);
-            curl_setopt($ch, CURLOPT_TIMEOUT, 30);
             curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
             curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
-            curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
             curl_setopt($ch, CURLOPT_POST, 1);
             curl_setopt($ch, CURLOPT_POSTFIELDS, $parStr);
-            $json = curl_exec($ch);
-            curl_close($ch);
         }
 
+        $head_and_body = curl_exec($ch);
+        curl_close($ch);
+
+        //0是头部内容1是body内容
+        list($head, $body) = explode("\r\n\r\n", $head_and_body, 2);
+        $heads = $this->_parseHeaders($head);
+
+        $json = $body;
         $result = json_decode($json, true);
 
-        if (isset($result['errcode']) and $result['errcode'] != 0) {
-            $this->_log("Error-{$method}-{$url}", $json, $data);
-            return false;
+        if (is_null($result)) {
+            return [
+                'file' => $body,
+                'head' => $heads
+            ];
+        } else {
+            if (isset($result['errcode']) and $result['errcode'] != 0) {
+                $this->_log("Error-{$method}-{$url}", $json, $data);
+                return false;
+            }
+
+            return $result;
         }
 
-        return $result;
     }
+
+
 
     private function _parseUserList($userList)
     {
@@ -535,5 +566,22 @@ class Qywx
             $log,
             FILE_APPEND
         );
+    }
+
+
+    private function _parseHeaders($headers)
+    {
+        $head = [];
+        foreach (explode("\r\n", $headers) as $k => $v) {
+            $t = explode(':', $v, 2);
+            if (isset($t[1]))
+                $head[trim($t[0])] = trim($t[1]);
+            else {
+                $head[] = $v;
+                if (preg_match("#HTTP/[0-9\.]+\s+([0-9]+)#", $v, $out))
+                    $head['reponse_code'] = intval($out[1]);
+            }
+        }
+        return $head;
     }
 }
